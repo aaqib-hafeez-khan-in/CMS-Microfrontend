@@ -1,22 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm --prefix cms-root-orchestration ci && npm --prefix cms-root-orchestration run build",
+  "buildCommand": "export NODE_OPTIONS=--openssl-legacy-provider && npm --prefix cms-angular-auth ci --legacy-peer-deps && npm --prefix cms-react-editorial ci --legacy-peer-deps && npm --prefix cms-svelte-collab ci --legacy-peer-deps && npm --prefix cms-vue-media ci --legacy-peer-deps && npm --prefix cms-root-orchestration ci --legacy-peer-deps && npm --prefix cms-angular-auth run build && npm --prefix cms-react-editorial run build && npm --prefix cms-svelte-collab run build && npm --prefix cms-vue-media run build && npm --prefix cms-root-orchestration run build && node scripts/prepare-vercel-deployment.js",
   "outputDirectory": "cms-root-orchestration/dist",
   "rewrites": [
-    { "source": "/cms-root-orchestration", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/auth/:path*", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/editorial/:path*", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/collab/:path*", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/media/:path*", "destination": "/index.html" },
-    { "source": "/cms-root-orchestration/index.js", "destination": "/index.js" },
-    { "source": "/cms-root-orchestration/design-system.css", "destination": "/design-system.css" }
+    { "source": "/auth/:path*", "destination": "/index.html" },
+    { "source": "/editorial/:path*", "destination": "/index.html" },
+    { "source": "/collab/:path*", "destination": "/index.html" },
+    { "source": "/media/:path*", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/cms-root-orchestration/index.js",
+      "source": "/mfes/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     }
   ]
