@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "export NODE_OPTIONS=--openssl-legacy-provider && npm --prefix cms-angular-auth ci --legacy-peer-deps && npm --prefix cms-react-editorial ci --legacy-peer-deps && npm --prefix cms-svelte-collab ci --legacy-peer-deps && npm --prefix cms-vue-media ci --legacy-peer-deps && npm --prefix cms-root-orchestration ci --legacy-peer-deps && npm --prefix cms-angular-auth run build && npm --prefix cms-react-editorial run build && npm --prefix cms-svelte-collab run build && npm --prefix cms-vue-media run build && npm --prefix cms-root-orchestration run build && node scripts/prepare-vercel-deployment.js",
+  "buildCommand": "node scripts/build-vercel.js",
   "outputDirectory": "cms-root-orchestration/dist",
   "rewrites": [
     { "source": "/auth/:path*", "destination": "/index.html" },
