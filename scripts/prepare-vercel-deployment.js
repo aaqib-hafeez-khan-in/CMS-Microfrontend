@@ -26,9 +26,12 @@ for (const moduleName of modules) {
 
 const indexPath = path.join(shellDist, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
+const stylesPath = path.join(rootDir, 'cms-root-orchestration', 'public', 'design-system.css');
+const styles = fs.readFileSync(stylesPath, 'utf8');
 
 html = html.replaceAll('/cms-root-orchestration', '');
 html = html.replace('base=""', 'base="/"');
+html = html.replace('<link rel="stylesheet" href="/design-system.css">', `<style>${styles}</style>`);
 
 for (const moduleName of modules) {
   const remoteUrl = `https://aaqibhafeezkhan.github.io/${moduleName}/main.js`;
