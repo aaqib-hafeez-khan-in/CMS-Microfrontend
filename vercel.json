@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm --prefix cms-root-orchestration ci && npm --prefix cms-root-orchestration run build",
+  "outputDirectory": "cms-root-orchestration/dist",
+  "rewrites": [
+    { "source": "/cms-root-orchestration", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/auth/:path*", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/editorial/:path*", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/collab/:path*", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/media/:path*", "destination": "/index.html" },
+    { "source": "/cms-root-orchestration/index.js", "destination": "/index.js" },
+    { "source": "/cms-root-orchestration/design-system.css", "destination": "/design-system.css" }
+  ],
+  "headers": [
+    {
+      "source": "/cms-root-orchestration/index.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+      ]
+    }
+  ]
+}
