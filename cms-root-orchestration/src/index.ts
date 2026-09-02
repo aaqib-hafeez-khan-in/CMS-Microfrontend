@@ -1,7 +1,6 @@
-import { registerApplication, start, LifeCycles } from "single-spa";
+import { registerApplication, start, LifeCycles, navigateToUrl } from "single-spa";
 import { constructApplications, constructRoutes, constructLayoutEngine } from "single-spa-layout";
 
-// Initialize single-spa-layout
 const layoutElement = document.getElementById('single-spa-layout') as HTMLTemplateElement;
 
 if (!layoutElement) {
@@ -23,13 +22,31 @@ const layoutEngine = constructLayoutEngine({
   active: true 
 });
 
-// Sync UI state before starting
+const protectedRoutes = [
+  '/cms-root-orchestration/editorial',
+  '/cms-root-orchestration/collab',
+  '/cms-root-orchestration/media'
+];
+
+const enforceAuthentication = () => {
+  const path = window.location.pathname;
+  const requiresAuthentication = protectedRoutes.some(route => path === route || path.startsWith(`${route}/`));
+  const authenticated = Boolean(localStorage.getItem('cms_session'));
+
+  if (requiresAuthentication && !authenticated) {
+    navigateToUrl('/cms-root-orchestration/auth');
+  }
+};
+
 window.addEventListener('single-spa:before-routing-event', () => {
+  enforceAuthentication();
   const container = document.getElementById('single-spa-container');
   if (container) {
     container.style.opacity = '0';
   }
 });
+
+enforceAuthentication();
 
 applications.forEach(registerApplication);
 layoutEngine.activate();
