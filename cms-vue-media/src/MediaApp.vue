@@ -1,151 +1,57 @@
 <template>
-  <div class="animate-in">
-    <header style="margin-bottom: 3.5rem; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 2rem;">
-      <div>
-        <h2 style="font-size: 2.5rem; font-weight: 900; color: var(--primary); letter-spacing: -0.04em; margin-bottom: 0.5rem;">Media Library</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem; font-weight: 500;">Manage and distribute global digital assets</p>
-      </div>
-      <div style="display: flex; gap: 1rem;">
-        <input 
-          type="file" 
-          ref="fileInput" 
-          @change="handleUpload" 
-          style="display: none"
-          accept="image/*"
-        >
-        <button 
-          @click="$refs.fileInput.click()" 
-          style="background: var(--primary-gradient); color: white; border: none; padding: 0.85rem 2rem; border-radius: 12px; cursor: pointer; font-weight: 700; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 0.5rem;"
-          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(79, 70, 229, 0.3)';"
-          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(79, 70, 229, 0.2)';"
-        >
-          <span>↑</span> Upload Asset
-        </button>
-      </div>
-    </header>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2rem;">
-      <div 
-        v-for="asset in assets" 
-        :key="asset.id" 
-        class="module-card" 
-        style="padding: 0; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: var(--radius);"
-        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='var(--shadow-lg)'"
-        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-sm)'"
-      >
-        <div style="aspect-ratio: 1; background: #f8fafc; overflow: hidden; border-bottom: 1px solid var(--border);">
-          <img 
-            :src="asset.url" 
-            style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s;" 
-            :alt="asset.name"
-            class="asset-image"
-          >
-        </div>
-        <div style="padding: 1.25rem;">
-          <p style="font-size: 0.9rem; font-weight: 800; color: var(--primary); margin-bottom: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            {{ asset.name }}
-          </p>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">{{ asset.size }} · {{ asset.type.split('/')[1].toUpperCase() }}</p>
-            <button @click="deleteAsset(asset.id)" style="padding: 0.4rem 0.75rem; color: #e11d48; border: 1px solid #fecdd3; background: #fff1f2; font-size: 0.7rem; font-weight: 700; border-radius: 6px; cursor: pointer;">Delete</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="assets.length === 0" style="text-align: center; padding: 6rem 2rem; border: 2px dashed var(--border); border-radius: var(--radius); background: #fafafa;">
-      <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-      <h3 style="color: var(--primary); font-weight: 800; margin-bottom: 0.5rem;">Library is Empty</h3>
-      <p style="color: var(--text-muted);">Start by uploading your first digital asset.</p>
-    </div>
+  <div class="media-app">
+    <header class="page-header"><div><p class="eyebrow">Digital asset management</p><h2>Media Library</h2><p class="subtitle">Upload, organize, preview and reuse assets across the CMS.</p></div><div class="header-actions"><button class="secondary" type="button" @click="toggleView">{{ viewMode === 'grid' ? '☷ List view' : '▦ Grid view' }}</button><button class="primary" type="button" @click="openFilePicker">↑ Upload asset</button><input ref="fileInput" class="hidden-input" type="file" accept="image/*" multiple @change="handleUpload"></div></header>
+    <div v-if="notice" class="notice success" role="status">{{ notice }}</div><div v-if="error" class="notice error" role="alert">{{ error }}</div>
+    <section class="stats"><div class="stat-card"><span>Total assets</span><strong>{{ assets.length }}</strong></div><div class="stat-card"><span>Images</span><strong>{{ imageCount }}</strong></div><div class="stat-card"><span>Tagged assets</span><strong>{{ taggedCount }}</strong></div><div class="stat-card"><span>Storage used</span><strong>{{ formatBytes(totalBytes) }}</strong></div></section>
+    <section class="toolbar"><label class="search-field"><span class="sr-only">Search assets</span><input v-model.trim="search" type="search" placeholder="Search filename, alt text or tags"></label><label><span class="sr-only">Filter by type</span><select v-model="typeFilter"><option value="all">All types</option><option value="image">Images</option></select></label><label><span class="sr-only">Sort assets</span><select v-model="sortBy"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option><option value="size">Largest first</option></select></label><button v-if="hasFilters" class="text-button" type="button" @click="clearFilters">Clear filters</button></section>
+    <div v-if="loading" class="state-card"><div class="spinner"></div><p>Loading media library…</p></div>
+    <section v-else-if="filteredAssets.length" :class="['asset-container', viewMode]"><article v-for="asset in filteredAssets" :key="asset.id" class="asset-card"><button class="asset-preview" type="button" :aria-label="`Preview ${asset.name}`" @click="openDetails(asset)"><img :src="asset.url" :alt="asset.altText || asset.name" @error="markPreviewError(asset.id)"><span v-if="asset.previewError" class="preview-fallback">Preview unavailable</span></button><div class="asset-info"><button class="asset-name" type="button" @click="openDetails(asset)">{{ asset.name }}</button><p>{{ formatBytes(asset.bytes) }} · {{ asset.width && asset.height ? `${asset.width} × ${asset.height}` : 'Image' }}</p><div class="tags" v-if="asset.tags.length"><span v-for="tag in asset.tags.slice(0, 3)" :key="tag">#{{ tag }}</span><span v-if="asset.tags.length > 3">+{{ asset.tags.length - 3 }}</span></div><div class="card-actions"><button type="button" @click="openDetails(asset)">Details</button><button type="button" @click="selectAsset(asset)">Use asset</button></div></div></article></section>
+    <section v-else class="empty-state"><div class="empty-icon">▧</div><h3>{{ assets.length ? 'No matching assets' : 'Your media library is empty' }}</h3><p>{{ assets.length ? 'Try a different search or filter.' : 'Upload an image to start building the library.' }}</p><button v-if="assets.length" class="secondary" type="button" @click="clearFilters">Clear filters</button><button v-else class="primary" type="button" @click="openFilePicker">Upload your first asset</button></section>
+    <div v-if="selectedAsset" class="modal-backdrop" role="presentation" @click.self="closeDetails"><aside class="details-panel" role="dialog" aria-modal="true" aria-labelledby="asset-details-title"><div class="panel-header"><div><p class="eyebrow">Asset details</p><h3 id="asset-details-title">{{ selectedAsset.name }}</h3></div><button class="icon-button" type="button" aria-label="Close details" @click="closeDetails">×</button></div><div class="large-preview"><img :src="selectedAsset.url" :alt="selectedAsset.altText || selectedAsset.name"></div><div class="metadata-grid"><div><span>Type</span><strong>{{ selectedAsset.type }}</strong></div><div><span>Size</span><strong>{{ formatBytes(selectedAsset.bytes) }}</strong></div><div><span>Dimensions</span><strong>{{ selectedAsset.width && selectedAsset.height ? `${selectedAsset.width} × ${selectedAsset.height}` : 'Unavailable' }}</strong></div><div><span>Uploaded</span><strong>{{ formatDate(selectedAsset.uploadedAt) }}</strong></div><div><span>Uploader</span><strong>{{ selectedAsset.uploader }}</strong></div></div><form class="metadata-form" @submit.prevent="saveMetadata"><label>Alt text<input v-model.trim="draftAltText" maxlength="180" placeholder="Describe the image"></label><label>Tags<input v-model="draftTags" maxlength="300" placeholder="e.g. product, homepage, team"></label><label>Reference<input :value="selectedAsset.url" readonly @focus="selectInput"></label><div class="panel-actions"><button class="secondary" type="button" @click="copyReference">Copy reference</button><button class="secondary" type="button" @click="selectAsset(selectedAsset)">Use asset</button><button class="primary" type="submit">Save metadata</button></div><button class="danger" type="button" @click="requestDelete(selectedAsset)">Delete asset</button></form></aside></div>
+    <div v-if="confirmDelete" class="modal-backdrop"><div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title"><p class="eyebrow">Destructive action</p><h3 id="delete-title">Delete {{ confirmDelete.name }}?</h3><p>This removes the asset from this browser's media library. Articles that already reference its URL will not be modified.</p><div class="panel-actions"><button class="secondary" type="button" @click="confirmDelete = null">Cancel</button><button class="danger solid" type="button" @click="deleteAsset">Delete asset</button></div></div></div>
   </div>
 </template>
-
-<style scoped>
-@media (max-width: 768px) {
-  header {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 1.5rem;
-  }
-  
-  h2 {
-    font-size: 1.75rem !important;
-  }
-  
-  p {
-    font-size: 0.95rem !important;
-  }
-
-  .module-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
-</style>
-
 <script lang="ts">
-// @ts-nocheck
-interface Asset {
-  id: number;
-  name: string;
-  url: string;
-  size: string;
-  type: string;
-}
-
-const STORAGE_KEY = 'cms_assets';
-
+interface Asset { id: string; name: string; url: string; type: string; bytes: number; width: number | null; height: number | null; uploadedAt: string; uploader: string; altText: string; tags: string[]; previewError?: boolean; }
+const STORAGE_KEY = 'cms_assets'; const SESSION_KEY = 'cms_session'; const MAX_FILE_BYTES = 5 * 1024 * 1024; const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+function createId(): string { return `media-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
+function getUploader(): string { try { const session = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}'); return session.user?.name || session.user?.email || session.name || 'Current User'; } catch { return 'Current User'; } }
+function seedAssets(): Asset[] { return [
+  { id: 'media-seed-1', name: 'modern_workspace.jpg', url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=1200', type: 'image/jpeg', bytes: 1400000, width: 1200, height: 800, uploadedAt: '2026-04-10T09:00:00.000Z', uploader: 'Admin', altText: 'Modern workspace', tags: ['workspace', 'office'] },
+  { id: 'media-seed-2', name: 'abstract_design_system.jpg', url: 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=1200', type: 'image/jpeg', bytes: 2100000, width: 1200, height: 800, uploadedAt: '2026-04-12T09:00:00.000Z', uploader: 'Admin', altText: 'Abstract design system', tags: ['design', 'branding'] },
+  { id: 'media-seed-3', name: 'server_infrastructure.jpg', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc51?auto=format&fit=crop&q=80&w=1200', type: 'image/jpeg', bytes: 3200000, width: 1200, height: 800, uploadedAt: '2026-04-15T09:00:00.000Z', uploader: 'Admin', altText: 'Server infrastructure', tags: ['infrastructure', 'technology'] },
+  { id: 'media-seed-4', name: 'team_collaboration.jpg', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=1200', type: 'image/jpeg', bytes: 1800000, width: 1200, height: 800, uploadedAt: '2026-04-18T09:00:00.000Z', uploader: 'Admin', altText: 'Team collaborating', tags: ['team', 'collaboration'] }
+]; }
+function normalizeAsset(raw: Partial<Asset>, index: number): Asset { return { id: String(raw.id || `media-migrated-${Date.now()}-${index}`), name: raw.name || 'Untitled asset', url: raw.url || '', type: raw.type || 'image/jpeg', bytes: Number(raw.bytes || 0), width: raw.width ?? null, height: raw.height ?? null, uploadedAt: raw.uploadedAt || new Date().toISOString(), uploader: raw.uploader || 'Current User', altText: raw.altText || '', tags: Array.isArray(raw.tags) ? raw.tags.map(String).filter(Boolean) : [] }; }
+function readAssets(): Asset[] { const saved = localStorage.getItem(STORAGE_KEY); if (!saved) { const seeded = seedAssets(); localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded)); return seeded; } const parsed = JSON.parse(saved); if (!Array.isArray(parsed)) throw new Error('Stored media data is invalid.'); const normalized = parsed.map(normalizeAsset); localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); return normalized; }
+function emitMediaEvent(name: string, asset: Asset): void { window.dispatchEvent(new CustomEvent(name, { detail: { assetId: asset.id, name: asset.name, url: asset.url, type: asset.type, size: asset.bytes, width: asset.width, height: asset.height, uploader: asset.uploader, uploadedAt: asset.uploadedAt, tags: asset.tags, altText: asset.altText, source: 'cms-vue-media' } })); }
 export default {
   name: 'MediaApp',
-  data() {
-    return {
-      assets: [] as Asset[]
-    };
+  data() { return { assets: [] as Asset[], loading: true, error: '', notice: '', search: '', typeFilter: 'all', sortBy: 'newest', viewMode: 'grid', selectedAsset: null as Asset | null, confirmDelete: null as Asset | null, draftAltText: '', draftTags: '' }; },
+  computed: {
+    filteredAssets(): Asset[] { const query = this.search.toLowerCase(); return this.assets.filter((asset: Asset) => { const haystack = [asset.name, asset.altText, asset.uploader, ...asset.tags].join(' ').toLowerCase(); return (!query || haystack.includes(query)) && (this.typeFilter === 'all' || asset.type.startsWith(`${this.typeFilter}/`)); }).sort((a: Asset, b: Asset) => { if (this.sortBy === 'name') return a.name.localeCompare(b.name); if (this.sortBy === 'size') return b.bytes - a.bytes; const comparison = new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(); return this.sortBy === 'oldest' ? -comparison : comparison; }); },
+    imageCount(): number { return this.assets.filter((asset: Asset) => asset.type.startsWith('image/')).length; },
+    taggedCount(): number { return this.assets.filter((asset: Asset) => asset.tags.length > 0).length; },
+    totalBytes(): number { return this.assets.reduce((total: number, asset: Asset) => total + asset.bytes, 0); },
+    hasFilters(): boolean { return Boolean(this.search || this.typeFilter !== 'all' || this.sortBy !== 'newest'); }
   },
-  mounted() {
-    this.loadAssets();
-  },
+  mounted() { try { this.assets = readAssets(); } catch { this.assets = []; this.error = 'The stored media library could not be read. A fresh empty library is ready; existing browser data was not overwritten.'; } finally { this.loading = false; } },
   methods: {
-    loadAssets() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        this.assets = JSON.parse(saved);
-      } else {
-        const initial: Asset[] = [
-          { id: 1, name: 'modern_workspace.jpg', url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=800', size: '1.4MB', type: 'image/jpeg' },
-          { id: 2, name: 'abstract_design_system.jpg', url: 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=800', size: '2.1MB', type: 'image/jpeg' },
-          { id: 3, name: 'server_infrastructure.jpg', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc51?auto=format&fit=crop&q=80&w=800', size: '3.2MB', type: 'image/jpeg' },
-          { id: 4, name: 'team_collaboration.jpg', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=800', size: '1.8MB', type: 'image/jpeg' }
-        ];
-        this.assets = initial;
-        this.saveAssets();
-      }
-    },
-    saveAssets() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.assets));
-    },
-    handleUpload(event: any) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        const newAsset: Asset = {
-          id: Date.now(),
-          name: file.name,
-          url: e.target.result,
-          size: (file.size / 1024 / 1024).toFixed(1) + 'MB',
-          type: file.type
-        };
-        this.assets.unshift(newAsset);
-        this.saveAssets();
-      };
-      reader.readAsDataURL(file);
-    },
-    deleteAsset(id: number) {
-      this.assets = this.assets.filter(a => a.id !== id);
-      this.saveAssets();
-    }
+    saveAssets(): void { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.assets)); this.error = ''; } catch { this.error = 'The media library could not be saved. Browser storage may be unavailable or full.'; } },
+    openFilePicker(): void { (this.$refs.fileInput as HTMLInputElement).click(); }, toggleView(): void { this.viewMode = this.viewMode === 'grid' ? 'list' : 'grid'; }, clearFilters(): void { this.search = ''; this.typeFilter = 'all'; this.sortBy = 'newest'; },
+    formatBytes(bytes: number): string { if (!bytes) return '0 B'; const units = ['B', 'KB', 'MB', 'GB']; const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1); return `${(bytes / Math.pow(1024, index)).toFixed(index ? 1 : 0)} ${units[index]}`; },
+    formatDate(value: string): string { return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value)); }, notify(message: string): void { this.notice = message; window.setTimeout(() => { this.notice = ''; }, 3000); },
+    handleUpload(event: Event): void { const input = event.target as HTMLInputElement; const files = Array.from(input.files || []); if (!files.length) return; let completed = 0; files.forEach(file => { if (!ALLOWED_TYPES.includes(file.type)) { this.error = `${file.name} is not a supported image type.`; completed += 1; return; } if (file.size > MAX_FILE_BYTES) { this.error = `${file.name} exceeds the 5 MB upload limit.`; completed += 1; return; } const reader = new FileReader(); reader.onload = () => { const url = String(reader.result || ''); const image = new Image(); image.onload = () => { const asset: Asset = { id: createId(), name: file.name, url, type: file.type, bytes: file.size, width: image.naturalWidth || null, height: image.naturalHeight || null, uploadedAt: new Date().toISOString(), uploader: getUploader(), altText: '', tags: [] }; this.assets.unshift(asset); this.saveAssets(); emitMediaEvent('media:uploaded', asset); completed += 1; if (completed === files.length) this.notify(`${files.length === 1 ? 'Asset' : `${files.length} assets`} uploaded.`); }; image.onerror = () => { this.error = `${file.name} could not be read as an image.`; completed += 1; }; image.src = url; }; reader.onerror = () => { this.error = `${file.name} could not be loaded.`; completed += 1; }; reader.readAsDataURL(file); }); input.value = ''; },
+    openDetails(asset: Asset): void { this.selectedAsset = asset; this.draftAltText = asset.altText; this.draftTags = asset.tags.join(', '); this.error = ''; }, closeDetails(): void { this.selectedAsset = null; },
+    saveMetadata(): void { if (!this.selectedAsset) return; const tags = Array.from(new Set(this.draftTags.split(',').map((tag: string) => tag.trim().toLowerCase()).filter(Boolean))); const updated = { ...this.selectedAsset, altText: this.draftAltText, tags }; this.assets = this.assets.map((asset: Asset) => asset.id === updated.id ? updated : asset); this.selectedAsset = updated; this.saveAssets(); emitMediaEvent('media:updated', updated); this.notify('Asset metadata saved.'); },
+    copyReference(): void { if (!this.selectedAsset) return; navigator.clipboard?.writeText(this.selectedAsset.url).then(() => this.notify('Asset reference copied.')).catch(() => { this.error = 'The asset reference could not be copied.'; }); }, selectInput(event: Event): void { (event.target as HTMLInputElement).select(); },
+    selectAsset(asset: Asset): void { window.dispatchEvent(new CustomEvent('media:selected', { detail: { assetId: asset.id, name: asset.name, url: asset.url, source: 'cms-vue-media' } })); this.notify(`${asset.name} selected for use.`); },
+    requestDelete(asset: Asset): void { this.confirmDelete = asset; }, deleteAsset(): void { if (!this.confirmDelete) return; const asset = this.confirmDelete; this.assets = this.assets.filter((item: Asset) => item.id !== asset.id); this.saveAssets(); emitMediaEvent('media:deleted', asset); if (this.selectedAsset?.id === asset.id) this.selectedAsset = null; this.confirmDelete = null; this.notify('Asset deleted.'); },
+    markPreviewError(id: string): void { this.assets = this.assets.map((asset: Asset) => asset.id === id ? { ...asset, previewError: true } : asset); }
   }
-}
+};
 </script>
+<style scoped>
+.media-app{color:var(--primary)}.page-header{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;margin-bottom:2rem;border-bottom:1px solid var(--border);padding-bottom:2rem}.eyebrow{margin:0 0 .35rem;color:var(--text-muted);font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}h2{margin:0;font-size:2.35rem;line-height:1.05;font-weight:900;letter-spacing:-.04em}.subtitle{margin:.65rem 0 0;color:var(--text-muted);font-weight:500}.header-actions,.panel-actions,.card-actions{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}button,input,select{font:inherit}button{cursor:pointer}.primary,.secondary,.danger,.text-button{border-radius:10px;padding:.72rem 1rem;font-weight:800;transition:.2s ease}.primary{border:0;color:white;background:var(--primary-gradient);box-shadow:var(--shadow-sm)}.secondary{border:1px solid var(--border);background:white;color:var(--primary)}.danger{border:1px solid #fecdd3;background:#fff1f2;color:#be123c}.danger.solid{background:#be123c;border-color:#be123c;color:white}.text-button{border:0;background:transparent;color:var(--primary)}.primary:hover,.secondary:hover,.danger:hover{transform:translateY(-1px)}.hidden-input{display:none}.notice{margin-bottom:1rem;border-radius:10px;padding:.8rem 1rem;font-weight:700}.notice.success{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}.notice.error{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}.stat-card{padding:1.1rem 1.25rem;border:1px solid var(--border);border-radius:14px;background:white;box-shadow:var(--shadow-sm)}.stat-card span{display:block;color:var(--text-muted);font-size:.78rem;font-weight:700}.stat-card strong{display:block;margin-top:.3rem;font-size:1.55rem}.toolbar{display:grid;grid-template-columns:1fr 180px 180px auto;gap:.75rem;margin-bottom:1.5rem}.toolbar input,.toolbar select,.metadata-form input{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;background:white;padding:.72rem .85rem;color:var(--primary);outline:none}.toolbar input:focus,.toolbar select:focus,.metadata-form input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}.asset-container.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}.asset-container.list{display:grid;gap:.75rem}.asset-card{overflow:hidden;border:1px solid var(--border);border-radius:14px;background:white;box-shadow:var(--shadow-sm)}.asset-container.list .asset-card{display:grid;grid-template-columns:140px 1fr}.asset-preview{position:relative;display:block;width:100%;aspect-ratio:4/3;padding:0;border:0;background:#f8fafc;overflow:hidden}.asset-container.list .asset-preview{aspect-ratio:1}.asset-preview img{width:100%;height:100%;object-fit:cover;display:block}.preview-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--text-muted);font-size:.8rem}.asset-info{padding:1rem}.asset-name{display:block;max-width:100%;overflow:hidden;border:0;padding:0;background:transparent;color:var(--primary);text-align:left;text-overflow:ellipsis;white-space:nowrap;font-weight:850}.asset-info p{margin:.4rem 0;color:var(--text-muted);font-size:.78rem}.tags{display:flex;gap:.3rem;flex-wrap:wrap;min-height:1.35rem}.tags span{border-radius:999px;background:#eef2ff;color:#4338ca;padding:.18rem .45rem;font-size:.68rem;font-weight:700}.card-actions{margin-top:.8rem}.card-actions button{border:0;background:transparent;color:var(--primary);padding:0;font-size:.75rem;font-weight:800}.card-actions button+button{margin-left:auto}.empty-state,.state-card{display:grid;place-items:center;gap:.7rem;min-height:320px;padding:2rem;border:2px dashed var(--border);border-radius:14px;background:#fafafa;text-align:center}.empty-state h3,.state-card p{margin:0}.empty-state p{margin:0 0 .4rem;color:var(--text-muted)}.empty-icon{font-size:2.5rem}.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}.modal-backdrop{position:fixed;z-index:100;inset:0;display:flex;justify-content:flex-end;background:rgba(15,23,42,.45)}.details-panel{width:min(520px,100%);height:100%;overflow-y:auto;box-sizing:border-box;padding:1.5rem;background:white;box-shadow:-12px 0 30px rgba(15,23,42,.15)}.panel-header{display:flex;justify-content:space-between;gap:1rem;margin-bottom:1rem}.panel-header h3,.confirm-dialog h3{margin:0;font-size:1.25rem;overflow-wrap:anywhere}.icon-button{width:36px;height:36px;border:1px solid var(--border);border-radius:9px;background:white;font-size:1.4rem}.large-preview{overflow:hidden;margin-bottom:1rem;border-radius:12px;background:#f8fafc}.large-preview img{display:block;width:100%;max-height:330px;object-fit:contain}.metadata-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem}.metadata-grid div{border:1px solid var(--border);border-radius:10px;padding:.75rem}.metadata-grid span{display:block;color:var(--text-muted);font-size:.68rem;font-weight:700}.metadata-grid strong{display:block;margin-top:.2rem;overflow-wrap:anywhere;font-size:.78rem}.metadata-form{display:grid;gap:1rem}.metadata-form label{display:grid;gap:.4rem;color:var(--primary);font-size:.78rem;font-weight:800}.metadata-form .panel-actions{justify-content:flex-end}.confirm-dialog{align-self:center;width:min(440px,calc(100% - 2rem));box-sizing:border-box;padding:1.5rem;border-radius:14px;background:white;box-shadow:var(--shadow-lg)}.confirm-dialog p:not(.eyebrow){color:var(--text-muted);line-height:1.55}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr 1fr}.search-field{grid-column:1/-1}}@media(max-width:650px){.page-header{align-items:flex-start;flex-direction:column}h2{font-size:1.8rem}.header-actions{width:100%}.header-actions button{flex:1}.toolbar{grid-template-columns:1fr}.search-field{grid-column:auto}.asset-container.list .asset-card{grid-template-columns:100px 1fr}.metadata-grid{grid-template-columns:1fr}}
+</style>
