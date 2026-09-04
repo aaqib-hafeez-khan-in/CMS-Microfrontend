@@ -19,15 +19,15 @@ module.exports = {
         test: /\.svelte$/,
         use: [
           {
-            loader: path.resolve(__dirname, 'svelte-template-compat-loader.js'),
-          },
-          {
             loader: 'svelte-loader',
             options: {
               preprocess: require('svelte-preprocess')(),
               emitCss: false,
               hotReload: false,
             },
+          },
+          {
+            loader: path.resolve(__dirname, 'svelte-template-compat-loader.js'),
           },
         ],
       },
