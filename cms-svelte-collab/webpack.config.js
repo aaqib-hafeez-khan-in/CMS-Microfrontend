@@ -17,14 +17,19 @@ module.exports = {
     rules: [
       {
         test: /\.svelte$/,
-        use: {
-          loader: 'svelte-loader',
-          options: {
-            preprocess: require('svelte-preprocess')(),
-            emitCss: false,
-            hotReload: false,
+        use: [
+          {
+            loader: path.resolve(__dirname, 'svelte-template-compat-loader.js'),
           },
-        },
+          {
+            loader: 'svelte-loader',
+            options: {
+              preprocess: require('svelte-preprocess')(),
+              emitCss: false,
+              hotReload: false,
+            },
+          },
+        ],
       },
       {
         test: /\.ts$/,
